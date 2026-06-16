@@ -1,0 +1,4 @@
+{
+  "sujet": "Relance devis — {entreprise}",
+  "corps": "Bonjour {prenom},\n\nJe me permets de vous contacter à nouveau concernant le devis que nous vous avons adressé pour {entreprise}.\n\nAvez-vous eu l'occasion d'en prendre connaissance ? Je reste disponible pour répondre à toutes vos questions ou ajuster notre proposition si nécessaire.\n\nN'hésitez pas à me revenir directement sur ce mail.\n\nBien cordialement,\n[VOTRE NOM]\n[VOTRE POSTE]\n[VOTRE ENTREPRISE]\n[TÉLÉPHONE]"
+}
