@@ -23,6 +23,49 @@ function formatEuro(n) {
   return n.toFixed(2).replace(".", ",") + " €";
 }
 
+let pnlChart = null;
+
+function renderChart(bets) {
+  const sorted = [...bets]
+    .filter(b => b.statut !== "en_attente")
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  let cumul = 0;
+  const labels = [];
+  const data = [];
+  sorted.forEach(bet => {
+    cumul += pnlForBet(bet);
+    labels.push(bet.date);
+    data.push(cumul.toFixed(2));
+  });
+
+  const ctx = document.getElementById("pnlChart");
+  if (pnlChart) pnlChart.destroy();
+  pnlChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "PnL cumulé (€)",
+        data,
+        borderColor: "#3d7eff",
+        backgroundColor: "rgba(61,126,255,0.15)",
+        tension: 0.2,
+        fill: true,
+        pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: "#e6e6e6" } } },
+      scales: {
+        x: { ticks: { color: "#9aa0b4" }, grid: { color: "#2a2d3a" } },
+        y: { ticks: { color: "#9aa0b4" }, grid: { color: "#2a2d3a" } }
+      }
+    }
+  });
+}
+
 function render() {
   const bets = loadBets();
   const tbody = document.getElementById("betBody");
@@ -66,6 +109,8 @@ function render() {
   const roiEl = document.getElementById("statRoi");
   roiEl.textContent = roi.toFixed(1) + " %";
   roiEl.className = "stat-value " + (roi > 0 ? "positive" : roi < 0 ? "negative" : "");
+
+  renderChart(bets);
 
   document.querySelectorAll(".btn-delete").forEach(btn => {
     btn.addEventListener("click", () => {
