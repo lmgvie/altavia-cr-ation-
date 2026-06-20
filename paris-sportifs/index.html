@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suivi Paris Sportifs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <h1>Suivi de Paris Sportifs</h1>
+
+  <div class="stats">
+    <div class="stat-card">
+      <span class="stat-label">Mises totales</span>
+      <span id="statMises" class="stat-value">0 €</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Gains totaux</span>
+      <span id="statGains" class="stat-value">0 €</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">PnL</span>
+      <span id="statPnl" class="stat-value">0 €</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">ROI</span>
+      <span id="statRoi" class="stat-value">0 %</span>
+    </div>
+  </div>
+
+  <form id="betForm">
+    <div class="form-row">
+      <input type="date" id="date" required>
+      <input type="text" id="event" placeholder="Événement (ex: PSG - OM)" required>
+      <input type="text" id="pari" placeholder="Type de pari (ex: Victoire PSG)" required>
+    </div>
+    <div class="form-row">
+      <input type="number" id="mise" placeholder="Mise (€)" step="0.01" min="0" required>
+      <input type="number" id="cote" placeholder="Cote" step="0.01" min="1" required>
+      <select id="statut">
+        <option value="en_attente">En attente</option>
+        <option value="gagne">Gagné</option>
+        <option value="perdu">Perdu</option>
+        <option value="rembourse">Remboursé (push)</option>
+      </select>
+      <button type="submit">Ajouter</button>
+    </div>
+  </form>
+
+  <table id="betTable">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Événement</th>
+        <th>Pari</th>
+        <th>Mise</th>
+        <th>Cote</th>
+        <th>Statut</th>
+        <th>Gain</th>
+        <th>PnL</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="betBody"></tbody>
+  </table>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

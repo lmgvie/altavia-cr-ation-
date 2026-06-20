@@ -1,0 +1,139 @@
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #0f1117;
+  color: #e6e6e6;
+  margin: 0;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 24px;
+  color: #ffffff;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: #1a1d29;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid #2a2d3a;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #9aa0b4;
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.positive { color: #3ddc84; }
+.negative { color: #ff5c5c; }
+
+form {
+  background: #1a1d29;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid #2a2d3a;
+}
+
+.form-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.form-row input, .form-row select, .form-row button {
+  flex: 1;
+  min-width: 120px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #2a2d3a;
+  background: #11131c;
+  color: #e6e6e6;
+  font-size: 0.95rem;
+}
+
+.form-row button {
+  flex: 0 0 auto;
+  background: #3d7eff;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  padding: 10px 24px;
+}
+
+.form-row button:hover {
+  background: #2c63d4;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #1a1d29;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+th, td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #2a2d3a;
+  font-size: 0.9rem;
+}
+
+th {
+  background: #11131c;
+  color: #9aa0b4;
+}
+
+select.statut-select {
+  background: #11131c;
+  color: #e6e6e6;
+  border: 1px solid #2a2d3a;
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.btn-delete {
+  background: transparent;
+  border: none;
+  color: #ff5c5c;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.badge.gagne { background: #1e4d33; color: #3ddc84; }
+.badge.perdu { background: #4d1e1e; color: #ff5c5c; }
+.badge.en_attente { background: #4d4419; color: #ffd23d; }
+.badge.rembourse { background: #2a2d3a; color: #9aa0b4; }
