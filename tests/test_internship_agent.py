@@ -185,6 +185,20 @@ class LoopTests(unittest.TestCase):
         self.assertEqual(self.mailer.followups, [])
         self.assertEqual(self.store.stats()["replied"], 1)
 
+    def test_loop_survives_errors(self):
+        a = self.make_agent([[company(i) for i in range(50)]])
+        real_tick, calls = a.tick, {"n": 0}
+
+        def flaky(preview=False):
+            calls["n"] += 1
+            if calls["n"] <= 2:
+                raise ConnectionError("network down")
+            return real_tick(preview)
+
+        a.tick = flaky
+        a.run(once=True)
+        self.assertEqual(len(self.mailer.sent), self.cfg["schedule"]["daily_target"])
+
     def test_dry_run_sends_nothing(self):
         self.cfg["engine"]["mode"] = "dry_run"
         a = self.make_agent([[company(i) for i in range(20)]])

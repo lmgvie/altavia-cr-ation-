@@ -99,6 +99,29 @@ python -m internship_agent seed my_companies.csv
 `seed` imports a list you built yourself (from a school alumni directory, a fair, LinkedIn), scored
 with the same rules. See `internship_agent/seed_companies.example.csv` for the columns.
 
+## Running unattended (24/7, no intervention)
+
+Once it's in `send` mode, `python -m internship_agent run` needs nothing from you. It loops every day,
+and if something fails (an API outage, the network dropping) it waits 5 min, 10 min, … up to 1 h and
+tries again. Four things to set up once:
+
+1. **A machine that never sleeps.** A laptop that closes stops the agent. Use a small Linux VPS
+   (any provider's cheapest plan is enough) or a Raspberry Pi. Copy the repo, `credentials.json`,
+   `token_internship.json` and your CV there.
+2. **Auto-restart.** `deploy/internship-agent.service` is a systemd service that starts the agent on
+   boot and restarts it if it crashes. The install steps are at the top of the file.
+3. **Gmail login that doesn't expire.** In Google Cloud Console → *OAuth consent screen*, click
+   **Publish app** (status "In production"). While the app is in "Testing", Google expires the
+   login every **7 days** and the agent stops sending until you log in again. For personal use you
+   don't need Google's verification; you'll just see an "unverified app" warning once.
+   Do the first login on your own computer (it opens a browser), then copy `token_internship.json`
+   to the server.
+4. **A spending limit.** Set a monthly limit in the Anthropic Console (Settings → Limits), so the
+   bill can't grow without you knowing.
+
+Replies arrive in your normal Gmail inbox. Check `python -m internship_agent status` or the logs
+(`journalctl -u internship-agent -f`) from time to time.
+
 ## Safeguards and why they matter
 
 - **No guessed emails.** Discovery is told never to build `firstname.lastname@` addresses, and scoring

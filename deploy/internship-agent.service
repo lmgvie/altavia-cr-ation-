@@ -1,0 +1,23 @@
+# systemd service: keeps the agent running 24/7 and restarts it after a crash or reboot.
+# Install (on a Linux server, as your user):
+#   1. Edit User=, WorkingDirectory= and the API key below.
+#   2. sudo cp deploy/internship-agent.service /etc/systemd/system/
+#   3. sudo systemctl daemon-reload && sudo systemctl enable --now internship-agent
+#   4. Logs:  journalctl -u internship-agent -f
+[Unit]
+Description=Finance internship application agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/altavia-cr-ation-
+Environment=ANTHROPIC_API_KEY=sk-ant-REPLACE_ME
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 -m internship_agent run
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

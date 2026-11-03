@@ -201,8 +201,21 @@ class Agent:
         if limit:
             self.cfg["schedule"]["daily_target"] = min(limit, self.cfg["schedule"]["hard_daily_cap"])
         log.info("Agent started · mode=%s · target=%d/day", self.mode, self.cfg["schedule"]["daily_target"])
+        errors = 0
         while True:
-            wait = self.tick(preview=preview)
+            try:
+                wait = self.tick(preview=preview)
+                errors = 0
+            except KeyboardInterrupt:
+                raise
+            except Exception:
+                # Unattended mode: an API outage, network drop or expired token must not
+                # kill the loop. Back off 5 min, 10 min, … up to 1 h, then keep retrying.
+                errors += 1
+                wait = min(300 * errors, 3600)
+                log.exception("Iteration failed (%d in a row); retrying in %d min", errors, wait // 60)
+                time.sleep(wait)
+                continue
             if once and self.exhausted:
                 log.info("Nothing left to send today: %s", self.store.stats())
                 return
