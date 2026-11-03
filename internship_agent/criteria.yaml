@@ -1,0 +1,100 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Internship hunting agent — configuration
+#  Edit this file, then run:  python -m internship_agent run --once
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── 1. Who you are (used to write every application) ────────────────────────
+candidate:
+  first_name: "Firstname"
+  last_name: "Lastname"
+  email_signature: |
+    Firstname Lastname
+    MSc Finance — Your School (2026–2027)
+    +33 6 00 00 00 00 · linkedin.com/in/your-profile
+  school: "Your School"
+  degree: "MSc in Finance"
+  graduation: "2027"
+  languages: ["English", "French"]          # letters are only written in these
+  cv_path: "internship_agent/cv/CV.pdf"     # attached to every application
+  internship:
+    duration: "6 months"
+    start: "January 2027"
+    flexible: true
+  # Facts the writer may use. Anything not listed here will NOT be claimed.
+  highlights:
+    - "Built a DCF and LBO model for a mid-cap industrial company during a class project"
+    - "Summer analyst at a regional bank: credit memos and covenant monitoring"
+    - "Advanced Excel / VBA, Python (pandas), Bloomberg certified"
+  motivation: >
+    I want to work on live transactions and learn valuation and deal execution
+    from a team that works on cross-border mid-market deals.
+
+# ── 2. The market range the agent focuses on ────────────────────────────────
+market:
+  description: >
+    Mid-market financial firms that run transactions or manage capital:
+    M&A advisory boutiques, private equity and growth funds, corporate finance
+    advisory, and asset managers.
+  # Segments scored as a match. Discovery is told to stay inside these.
+  target_segments:
+    - "M&A advisory"
+    - "Private equity"
+    - "Growth equity / venture capital"
+    - "Corporate finance advisory"
+    - "Asset management"
+    - "Transaction services"
+  excluded_segments:
+    - "Retail banking"
+    - "Insurance brokerage"
+    - "Crypto"
+    - "Personal financial advice"
+  employees: { min: 15, max: 3000 }        # company size range
+  # Regions are explored in rotation; each discovery round targets one.
+  regions:
+    - { name: "France",              countries: ["FR"] }
+    - { name: "United Kingdom",      countries: ["GB"] }
+    - { name: "Switzerland & Lux.",  countries: ["CH", "LU"] }
+    - { name: "Benelux",             countries: ["BE", "NL"] }
+    - { name: "DACH",                countries: ["DE", "AT"] }
+    - { name: "Nordics",             countries: ["SE", "DK", "NO", "FI"] }
+    - { name: "Southern Europe",     countries: ["ES", "IT", "PT"] }
+    - { name: "Middle East",         countries: ["AE", "SA", "QA"] }
+    - { name: "North America",       countries: ["US", "CA"] }
+    - { name: "Asia-Pacific",        countries: ["SG", "HK", "AU", "JP"] }
+  priority_countries: ["FR", "GB", "CH", "LU", "US", "SG"]   # bonus points
+  excluded_companies: []                    # names or domains to never contact
+
+# ── 3. Scoring (0-100). Companies below min_score are never contacted. ──────
+scoring:
+  min_score: 60
+  weights:
+    segment_match: 35        # segment is in target_segments
+    size_in_range: 15        # employees within the range above
+    internship_signal: 20    # careers page mentions internships / analyst programmes
+    priority_country: 10
+    contact_quality: 15      # careers/recruiting inbox > general inbox > named person
+    language_match: 5        # country language is one the candidate writes in
+
+# ── 4. Daily rhythm ─────────────────────────────────────────────────────────
+schedule:
+  daily_target: 35            # applications per day (objective: > 30)
+  hard_daily_cap: 45          # never exceed, whatever happens (Gmail safety)
+  min_gap_minutes: 4          # random wait between two sends
+  max_gap_minutes: 9
+  recipient_hours: [9, 17]    # only send during the recipient's local office hours
+  weekdays_only: true         # recipient's local weekday
+  followup_after_days: 8      # one polite follow-up if no reply
+  pipeline_buffer: 20         # keep at least this many qualified companies ready
+  max_discovery_rounds_per_day: 12
+
+# ── 5. Engine ───────────────────────────────────────────────────────────────
+engine:
+  # dry_run → writes letters to logs only · draft → Gmail drafts you send yourself
+  # send    → sends automatically. Start with dry_run, read the output, then switch.
+  mode: "dry_run"
+  model: "claude-opus-5-5"
+  discovery_effort: "medium"
+  writing_effort: "medium"
+  companies_per_discovery: 15
+  allow_named_contacts: false  # true = may email a named recruiter if publicly listed
+  refusal_fallbacks: true      # server-side fallback model if a request is declined

@@ -4,3 +4,6 @@ __pycache__/
 token.json
 credentials.json
 logs/
+token_internship.json
+internship_agent/data/
+internship_agent/cv/*.pdf
