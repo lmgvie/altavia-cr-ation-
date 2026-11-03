@@ -15,7 +15,7 @@ from internship_agent.settings import load_settings
 from internship_agent.store import Store, iso
 from internship_agent.writer import Application, OfferKit, ReplyAnalysis
 
-CFG = load_settings()
+CFG = load_settings(use_local=False)  # tests never depend on personal settings
 
 
 def company(i, **kw):

@@ -21,10 +21,28 @@ GMAIL_SCOPES = [
 VALID_MODES = {"dry_run", "draft", "send"}
 
 
-def load_settings(path: Path | str | None = None) -> dict:
+def _deep_merge(base: dict, override: dict) -> dict:
+    for k, v in (override or {}).items():
+        if isinstance(v, dict) and isinstance(base.get(k), dict):
+            _deep_merge(base[k], v)
+        else:
+            base[k] = v  # scalars and lists are replaced, not appended
+    return base
+
+
+def load_settings(path: Path | str | None = None, use_local: bool = True) -> dict:
+    """Load criteria.yaml, then criteria.local.yaml next to it if present.
+
+    The .local file is gitignored: put personal details (name, phone, CV path)
+    there so they never end up in a public repository.
+    """
     path = Path(path or DEFAULT_CRITERIA)
     with open(path, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
+    local = path.with_name(path.stem + ".local" + path.suffix)
+    if use_local and local.exists():
+        with open(local, encoding="utf-8") as f:
+            _deep_merge(cfg, yaml.safe_load(f))
 
     mode = cfg["engine"]["mode"]
     if mode not in VALID_MODES:

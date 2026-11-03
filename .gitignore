@@ -7,3 +7,4 @@ logs/
 token_internship.json
 internship_agent/data/
 internship_agent/cv/*.pdf
+internship_agent/criteria.local.yaml

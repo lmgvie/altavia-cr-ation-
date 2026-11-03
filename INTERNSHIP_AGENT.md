@@ -46,8 +46,12 @@ sends 30+ applications a day from your Gmail, with your CV attached.
 3. **Gmail.** Follow `SETUP_GOOGLE_API.md` to get `credentials.json`. The agent keeps its own token
    (`token_internship.json`) with send, draft and read scopes, so the existing `relance.py` keeps working.
    On first run a browser window asks you to authorise it.
-4. **Your CV.** Put the PDF at `internship_agent/cv/CV.pdf`. This folder is gitignored.
-5. **Your criteria.** Edit `internship_agent/criteria.yaml`:
+4. **Your CV.** Put the PDF in `internship_agent/cv/` and point `candidate.cv_path` at it. Its file name is the attachment name recruiters see, so `Firstname_Lastname_CV.pdf` works well.
+5. **Your personal details stay private.** This repository is public, so put your name, phone,
+   signature, highlights and CV path in `internship_agent/criteria.local.yaml`. It overrides
+   `criteria.yaml` and is gitignored, as is the CV in `internship_agent/cv/`. Copy both to your
+   server yourself.
+6. **Your criteria.** Edit `internship_agent/criteria.yaml`:
    - `candidate`: name, school, dates, languages, signature, and above all **`highlights`**. The writer
      will never claim anything that isn't listed there.
    - `market`: the segments, size range, regions and priority countries the agent focuses on.
