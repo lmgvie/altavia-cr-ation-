@@ -181,6 +181,16 @@ class OfferFilterTests(unittest.TestCase):
         b = clean_url("https://fr.linkedin.com/jobs/view/analyste-m-a-4012345678")
         self.assertEqual(a, b)
 
+    def test_finance_role_at_non_finance_company(self):
+        for seg in ("FP&A", "Contrôle de gestion", "Financial controlling", "Statutory audit"):
+            with self.subTest(seg):
+                o = offer(1, title="Stage Contrôle de gestion - Avril 2027", company="Danone", segment=seg)
+                self.assertEqual(evaluate_offer(o, CFG)["status"], "qualified")
+
+    def test_audit_firm_qualifies_for_email(self):
+        c = scoring.evaluate(company(1, segment="Audit & accounting", employees=250), CFG)
+        self.assertEqual(c["status"], "qualified")
+
     def test_rejections(self):
         old = (date.today() - timedelta(days=60)).isoformat()
         cases = {

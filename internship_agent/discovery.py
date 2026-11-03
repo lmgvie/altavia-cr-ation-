@@ -41,7 +41,7 @@ SUBMIT_TOOL = {
                         "website": {"type": "string", "description": "Official homepage URL"},
                         "country": {"type": "string", "description": "ISO 3166-1 alpha-2 code of the office you would join"},
                         "city": {"type": "string"},
-                        "segment": {"type": "string", "description": "Main business line, e.g. 'M&A advisory'"},
+                        "segment": {"type": "string", "description": "Main business line, e.g. 'Audit', 'Transaction services', 'M&A advisory'"},
                         "employees": {"type": "integer", "description": "Approximate headcount; 0 if unknown"},
                         "contact_email": {"type": "string", "description": "Email address exactly as published"},
                         "contact_source": {"type": "string", "description": "URL of the page where the email is published"},
@@ -134,7 +134,9 @@ def discover(client: anthropic.Anthropic, cfg: dict, region: dict, exclude_domai
     user = (
         f"Find {n} companies in {region['name']} (countries: {', '.join(region['countries'])}) "
         f"that fit the market range and publish an email address where an internship application can be sent.\n"
-        f"Mix well-known and lesser-known firms; smaller boutiques reply more often.\n"
+        f"Spread the results across several target segments, not only M&A: audit and accounting firms, "
+        f"transaction services and financial advisory teams hire first-time finance interns most often.\n"
+        f"Mix well-known and lesser-known firms; smaller firms reply more often.\n"
         f"Already in the pipeline — do not return these domains:\n{', '.join(exclude_domains) or '(none)'}"
     )
     data = search_and_submit(client, cfg, _system_prompt(cfg), user, SUBMIT_TOOL)

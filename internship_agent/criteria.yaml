@@ -42,17 +42,28 @@ candidate:
 # ── 2. The market range the agent focuses on ────────────────────────────────
 market:
   description: >
-    Mid-market financial firms that run transactions or manage capital:
-    M&A advisory boutiques, private equity and growth funds, corporate finance
-    advisory, and asset managers.
+    Any finance role open to a first finance internship: audit and accounting
+    firms, transaction services and financial advisory, the finance teams of
+    companies (financial control, FP&A, management control), M&A advisory
+    boutiques, private equity and growth funds, and asset managers.
   # Segments scored as a match. Discovery is told to stay inside these.
+  # For job offers this is the finance function of the role (an FP&A internship
+  # at a food company counts as "FP&A"), not the employer's industry.
   target_segments:
+    - "Audit"
+    - "Accounting & financial advisory"
+    - "Transaction services"
+    - "Financial control"
+    - "Controlling"
+    - "Contrôle de gestion"
+    - "FP&A"
+    - "Corporate finance"
+    - "Treasury"
     - "M&A advisory"
     - "Private equity"
     - "Growth equity / venture capital"
-    - "Corporate finance advisory"
+    - "Investment banking"
     - "Asset management"
-    - "Transaction services"
   excluded_segments:
     - "Retail banking"
     - "Insurance brokerage"

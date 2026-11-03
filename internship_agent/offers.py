@@ -41,7 +41,9 @@ SUBMIT_OFFERS = {
                         "posted": {"type": "string", "description": "Posting date YYYY-MM-DD if shown, else empty"},
                         "language": {"type": "string", "description": "Language the posting is written in"},
                         "requirements": {"type": "string", "description": "Key requirements in one or two sentences"},
-                        "segment": {"type": "string", "description": "Business line, e.g. 'Private equity'"},
+                        "segment": {"type": "string", "description": (
+                            "Finance function of the role, not the employer's industry: e.g. 'Audit', "
+                            "'FP&A', 'Financial control', 'Transaction services', 'M&A advisory'")},
                         "why_fit": {"type": "string", "description": "Why it matches the candidate, one sentence"},
                     },
                 },
