@@ -10,16 +10,23 @@ from pathlib import Path
 
 import anthropic
 
-from . import scoring
+from . import digest, scoring
 from .discovery import discover
+from .offers import evaluate_offer, find_offers
 from .settings import DB_FILE, GMAIL_SCOPES, LOGS_DIR, TOKEN_FILE
 from .store import Store, day_start, utcnow
-from .writer import write_application, write_followup
+from .writer import analyse_reply, write_application, write_followup, write_offer_kit
 
 log = logging.getLogger("internship_agent")
 
 REPLY_CHECK_EVERY = timedelta(hours=1)
 IDLE_SLEEP = 15 * 60  # nobody is in office hours / pipeline empty
+AFTER_TARGET_SLEEP = 30 * 60  # target met: keep checking replies and send the digest
+
+CONFIRMATION_QUERY = (
+    'newer_than:14d (from:linkedin.com subject:("application was sent" OR "candidature a été envoyée") '
+    'OR subject:("thank you for applying" OR "thank you for your application" OR "application received" '
+    'OR "merci pour votre candidature" OR "nous avons bien reçu votre candidature"))')
 
 
 class Agent:
@@ -32,6 +39,7 @@ class Agent:
         self._last_reply_check = None
         self._failures: dict[str, int] = {}
         self.exhausted = False
+        self._target_logged = None
         if self.mode != "dry_run" and self.mailer is None:
             self.mailer = self._connect_gmail()
 
@@ -117,7 +125,8 @@ class Agent:
 
         self.store.record_application(company["domain"], company["contact_email"], letter.subject,
                                       letter.body, lang, self.mode, gmail_id, thread_id,
-                                      self.cfg["schedule"]["followup_after_days"])
+                                      self.cfg["schedule"]["followup_after_days"],
+                                      letter.linkedin_note or None, letter.linkedin_message or None)
         self._archive_letter(company, letter, lang)
         verb = {"send": "sent", "draft": "drafted", "dry_run": "previewed"}[self.mode]
         log.info("✓ %s %s → %s (%s, score %s, %s) [%d/%d today]", verb, company["name"],
@@ -133,21 +142,127 @@ class Agent:
             f"SCORE: {company['score']} · {company['segment']} · {company['country']} · {lang}\n"
             f"SUBJECT: {letter.subject}\n\n{letter.body}\n", encoding="utf-8")
 
-    def check_replies(self):
-        if self.mode != "send" or not self.mailer:
+    def check_replies(self, force: bool = False):
+        """Find new answers, classify them, save a suggested reply in Gmail Drafts."""
+        if self.mode == "dry_run" or not self.mailer:
             return
-        if self._last_reply_check and utcnow() - self._last_reply_check < REPLY_CHECK_EVERY:
+        if not force and self._last_reply_check and utcnow() - self._last_reply_check < REPLY_CHECK_EVERY:
             return
         self._last_reply_check = utcnow()
-        for app in self.store.open_threads():
-            try:
-                status = self.mailer.thread_status(app["thread_id"])
-            except Exception as e:
-                log.warning("reply check failed for %s: %s", app["domain"], e)
+        threads = self.store.open_threads_by_id()
+        if threads:
+            for tid in self.mailer.recent_inbound_thread_ids(days=3) & threads.keys():
+                try:
+                    self._process_thread(threads[tid])
+                except Exception as e:
+                    log.warning("reply handling failed for %s: %s", threads[tid]["domain"], e)
+        self.detect_offer_confirmations()
+
+    def _process_thread(self, app):
+        for m in self.mailer.inbound_messages(app["thread_id"]):
+            if self.store.reply_seen(m["id"]):
                 continue
-            if status != "waiting":
-                self.store.mark_replied(app["id"], app["domain"], status)
-                log.info("📬 %s from %s (%s)", status.upper(), app["domain"], app["to_email"])
+            if m["from"].startswith(("mailer-daemon", "postmaster")):
+                self.store.record_reply(m["id"], app["id"], "bounce", f"Delivery to {app['to_email']} failed.", None)
+                self.store.mark_replied(app["id"], app["domain"], "bounced")
+                log.info("⚠️ BOUNCE %s (%s)", app["domain"], app["to_email"])
+                continue
+            name = self.store.company_name(app["domain"])
+            res = analyse_reply(self.client, self.cfg, app, name, m["text"])
+            kind = res.kind if res else "other"
+            summary = res.summary if res else "Reply received (could not be analysed — read it in Gmail)."
+            draft_id = None
+            if (res and kind != "auto_ack" and res.draft_reply.strip()
+                    and self.cfg.get("replies", {}).get("draft_responses", True)):
+                draft_id = self.mailer.draft_reply(app["thread_id"], m["from"], m["subject"] or app["subject"],
+                                                   res.draft_reply, m["message_id"])
+            self.store.record_reply(m["id"], app["id"], kind, summary, draft_id)
+            if kind != "auto_ack":  # an automatic acknowledgement doesn't stop the follow-up
+                self.store.mark_replied(app["id"], app["domain"])
+            log.info("📬 %s from %s%s", kind.upper(), name, " — draft ready in Gmail" if draft_id else "")
+
+    # ── online job offers ────────────────────────────────────────────────────
+    def offers_due(self) -> bool:
+        oc = self.cfg.get("offers", {})
+        return (oc.get("enabled", False)
+                and self.store.offers_ready_since(day_start()) < oc["daily_target"]
+                and self.store.offer_runs_today() < oc["max_search_rounds_per_day"])
+
+    def run_offer_search(self, region: dict | None = None) -> int:
+        regions = self.cfg["market"]["regions"]
+        region = region or regions[self.store.total_offer_runs() % len(regions)]
+        log.info("🧾 Searching job offers in %s …", region["name"])
+        found = find_offers(self.client, self.cfg, region, self.store.known_offer_urls())
+        added = qualified = 0
+        for raw in found:
+            o = evaluate_offer(raw, self.cfg)
+            if o["url"] and self.store.add_offer(o):
+                added += 1
+                qualified += o["status"] == "qualified"
+        self.store.record_offer_run(region["name"], len(found), added)
+        log.info("   %d offers found · %d new · %d qualified", len(found), added, qualified)
+        return qualified
+
+    def prepare_offer_kits(self):
+        missing = self.cfg["offers"]["daily_target"] - self.store.offers_ready_since(day_start())
+        for o in self.store.offers_with_status("qualified")[:max(missing, 0)]:
+            lang = (o["language"] or "English").capitalize()
+            kit = write_offer_kit(self.client, self.cfg, o, lang)
+            if kit is None:
+                self.store.set_offer_status(o["url"], "rejected", "writer could not produce a kit")
+                continue
+            self.store.set_offer_kit(o["url"], kit.cover_letter, kit.why_answer)
+            log.info("📝 offer ready: %s — %s", o["title"], o["company"])
+
+    def detect_offer_confirmations(self):
+        """Mark offers as applied when LinkedIn / the company confirms by email."""
+        ready = self.store.ready_offers()
+        if not ready:
+            return
+        subjects = [scoring._norm(x) for x in self.mailer.search_subjects(CONFIRMATION_QUERY)]
+        for o in ready:
+            name = scoring._norm(o["company"])
+            if name and any(name in subj for subj in subjects):
+                self.store.set_offer_status(o["url"], "applied")
+                log.info("✅ applied online: %s — %s", o["title"], o["company"])
+
+    # ── daily digest ─────────────────────────────────────────────────────────
+    def maybe_send_digest(self, force: bool = False) -> bool:
+        dg = self.cfg.get("digest", {})
+        if not dg.get("enabled", False):
+            return False
+        key = "digest:" + datetime.now().strftime("%Y-%m-%d")
+        if self.store.get_meta(key) or (not force and datetime.now().hour < dg.get("hour", 18)):
+            return False
+
+        self.store.expire_offers(self.cfg["offers"]["keep_in_digest_days"])
+        all_replies = self.store.undigested_replies()
+        replies = [r for r in all_replies if r["kind"] != "auto_ack"]
+        offers = self.store.ready_offers() if self.cfg["offers"].get("enabled") else []
+        linkedin = []
+        li = self.cfg.get("linkedin", {})
+        if li.get("enabled"):
+            budget = li["weekly_invites"] - self.store.linkedin_listed_since(utcnow() - timedelta(days=7))
+            linkedin = self.store.linkedin_candidates(li["min_score"], self.mode)[:max(min(budget, 20), 0)]
+
+        subject, html, text = digest.build(
+            self.cfg, self.store.stats(), self.store.applications_since(day_start(), self.mode),
+            replies, offers, linkedin, self.store.contacted_domains(),
+            {o["url"] for o in offers if not o["listed_at"]})
+
+        folder = LOGS_DIR / "digest"
+        folder.mkdir(parents=True, exist_ok=True)
+        page = folder / f"{datetime.now():%Y-%m-%d}.html"
+        page.write_text(f'<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" '
+                        f'content="width=device-width,initial-scale=1"><title>Internship digest</title></head>'
+                        f'<body style="background:#fff;margin:0">{html}</body></html>', encoding="utf-8")
+        if self.mode != "dry_run" and self.mailer:
+            self.mailer.send_html_to_self(subject, html, text)
+        self.store.mark_digested([r["gmail_msg_id"] for r in all_replies], [c["id"] for c in linkedin],
+                                 [o["url"] for o in offers])
+        self.store.set_meta(key, utcnow().isoformat())
+        log.info("📨 digest %s: %s", "emailed to you" if self.mode != "dry_run" else "saved", page)
+        return True
 
     def do_followups(self):
         if self.mode != "send":
@@ -159,8 +274,8 @@ class Agent:
             if not scoring.in_office_hours(app["country"], now, s["recipient_hours"], s["weekdays_only"]):
                 continue
             # last-second reply check so we never nudge someone who just answered
-            if self.mailer.thread_status(app["thread_id"]) != "waiting":
-                self.store.mark_replied(app["id"], app["domain"])
+            self._process_thread(app)
+            if self.store.has_reply(app["id"]):
                 continue
             fu = write_followup(self.client, self.cfg, app, app["language"] or "English")
             if fu is None:
@@ -176,6 +291,10 @@ class Agent:
         """One iteration. Returns seconds to wait, or None when today's target is met."""
         self.check_replies()
         self.do_followups()
+        self.maybe_send_digest()
+        if self.offers_due():
+            self.run_offer_search()
+            self.prepare_offer_kits()
         if self.target_reached():
             return None
         self.refill_pipeline()
@@ -218,13 +337,19 @@ class Agent:
                 continue
             if once and self.exhausted:
                 log.info("Nothing left to send today: %s", self.store.stats())
+                self.maybe_send_digest(force=True)
                 return
             if wait is None:
-                log.info("Daily target reached: %s", self.store.stats())
+                today = datetime.now().strftime("%Y-%m-%d")
+                if self._target_logged != today:
+                    log.info("Daily target reached: %s", self.store.stats())
+                    self._target_logged = today
                 if once or preview:
+                    self.maybe_send_digest(force=True)
                     return
-                wait = (day_start() + timedelta(days=1, minutes=5) - datetime.now().astimezone()).total_seconds()
-                log.info("Sleeping until tomorrow (%.1f h).", wait / 3600)
+                # keep watching replies and send the evening digest, then resume tomorrow
+                to_tomorrow = (day_start() + timedelta(days=1, minutes=5) - datetime.now().astimezone()).total_seconds()
+                wait = min(AFTER_TARGET_SLEEP, to_tomorrow)
             time.sleep(max(wait, 0))
 
     def seed_from_csv(self, path: Path) -> tuple[int, int]:

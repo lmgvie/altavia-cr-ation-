@@ -28,6 +28,9 @@ sends 30+ applications a day from your Gmail, with your CV attached.
 | Write | `internship_agent/writer.py` | One letter per firm, 120–180 words, written in the local language if you speak it (otherwise English). It opens with a verified fact about the firm and only uses the highlights you put in `criteria.yaml`. Letters with placeholders are thrown out and rewritten. |
 | Deliver | `internship_agent/mailer.py` | Gmail API: sends the letter with your CV attached, or saves it as a draft. Follow-ups go in the same email thread. It also spots replies and bounces. |
 | Loop | `internship_agent/agent.py` | Sends only during the recipient's local office hours on weekdays, waits a random 4–9 minutes between emails, stops at `daily_target`, never goes over `hard_daily_cap` (follow-ups count toward it), and sends at most one follow-up per firm, after 8 days. |
+| Replies | `agent.py` + `writer.py` | Checks for answers every hour, sorts them, saves a suggested reply in Gmail Drafts. Never sends it. |
+| Offers | `internship_agent/offers.py` | Finds online internship postings and prepares a ready-to-paste application for each one (you submit). |
+| Digest | `internship_agent/digest.py` | One email a day to you: replies, job offers with Apply links, LinkedIn kits. Also saved in `logs/digest/`. |
 | State | `internship_agent/data/pipeline.sqlite3` | Every firm found, its score, why it was rejected, every email sent. No firm is contacted twice. |
 
 ## Setup (about 15 minutes)
@@ -99,6 +102,36 @@ python -m internship_agent seed my_companies.csv
 `seed` imports a list you built yourself (from a school alumni directory, a fair, LinkedIn), scored
 with the same rules. See `internship_agent/seed_companies.example.csv` for the columns.
 
+## Replies, LinkedIn and online job offers
+
+The agent sends emails by itself. Three things need a click from you, because sending them
+automatically is either risky (a reply to a recruiter) or against LinkedIn's rules, which get
+accounts banned. The agent prepares them, and **one email a day** (the *digest*, at 18:00 by
+default) gives you everything ready to paste:
+
+| Section of the digest | What the agent did | What you do |
+|---|---|---|
+| **Companies that replied** | Read the reply, sorted it (interview, info request, rejection, automatic acknowledgement), wrote a suggested answer and **saved it in Gmail → Drafts, in the same thread**. Follow-ups to that company stop. | Open Drafts, check it, send. |
+| **Job offers to apply online** | Searched LinkedIn Jobs, company career sites and application systems (Greenhouse, Lever, Workday, Welcome to the Jungle, JobTeaser…) for internship postings in your market. Kept only internships, under 30 days old, in your regions and languages. Wrote a cover letter for each one and a "Why us?" answer, and listed your standard answers (work permit, dates, languages, salary). | Click **Apply**, paste, submit (≈ 2 min for LinkedIn Easy Apply). The offer leaves the list by itself when LinkedIn's or the company's confirmation email arrives. You can also run `python -m internship_agent done 12`. |
+| **LinkedIn** | For the best companies emailed that day (score ≥ 75), a link to the company page, a link to search its people, a connection note under 300 characters and a follow-up message. Capped at 80 a week (LinkedIn allows about 100). | Connect → Add a note → paste. Send the message once they accept. |
+
+Settings are in `criteria.yaml` under `linkedin`, `offers`, `replies` and `digest`. Fill in
+`candidate.screening_answers`: these are the answers to the questions every application form asks.
+
+Useful commands:
+
+```bash
+python -m internship_agent offers --region "United Kingdom"
+```
+
+```bash
+python -m internship_agent digest
+```
+
+```bash
+python -m internship_agent done 12 15
+```
+
 ## Running unattended (24/7, no intervention)
 
 Once it's in `send` mode, `python -m internship_agent run` needs nothing from you. It loops every day,
@@ -151,5 +184,8 @@ python -m unittest discover tests
 ```
 
 The tests use a fake Claude and a fake Gmail. They check that the agent reaches 35 sends with no
-duplicates, stops when discovery finds nothing, counts follow-ups toward the hard cap, never follows
-up after a reply, sends nothing in dry-run mode, and that the scoring and office-hours rules work.
+duplicates, stops when discovery finds nothing, counts follow-ups toward the hard cap, recovers from
+errors, sends nothing in dry-run mode, drafts answers to replies in the right thread, keeps the
+follow-up after an automatic acknowledgement, handles bounces, prepares 15 job offers a day and
+marks them applied from the confirmation email, sends the digest once a day, and stays under the
+weekly LinkedIn budget.

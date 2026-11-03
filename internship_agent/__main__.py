@@ -3,6 +3,9 @@
   run [--once] [--limit N]   start the loop (dry_run mode: previews N letters and exits)
   discover [--region NAME]   run one discovery round now
   seed FILE.csv              import your own list of companies (scored the same way)
+  offers [--region NAME]     search online job offers now and prepare their kits
+  digest                     build (and in send/draft mode, email you) today's digest now
+  done REF [REF ...]         mark job offers as applied (REF = the #number in the digest)
   status                     pipeline and today's counters
   reset-previews             re-queue companies that were only previewed in dry_run
 """
@@ -27,6 +30,11 @@ def main():
     d.add_argument("--region", help="region name from criteria.yaml")
     s = sub.add_parser("seed")
     s.add_argument("csv")
+    o = sub.add_parser("offers")
+    o.add_argument("--region", help="region name from criteria.yaml")
+    sub.add_parser("digest")
+    dn = sub.add_parser("done")
+    dn.add_argument("refs", nargs="+")
     sub.add_parser("status")
     sub.add_parser("reset-previews")
     args = p.parse_args()
@@ -43,12 +51,20 @@ def main():
 
     cfg = load_settings(args.config)
 
-    if args.cmd in ("status", "reset-previews"):
+    if args.cmd in ("status", "reset-previews", "done"):
         from .settings import DB_FILE
         from .store import Store
         store = Store(DB_FILE)
         if args.cmd == "status":
             print(json.dumps({"mode": cfg["engine"]["mode"], **store.stats()}, indent=2))
+        elif args.cmd == "done":
+            for ref in args.refs:
+                o = store.offer_by_ref(int(ref.lstrip("#")) if ref.lstrip("#").isdigit() else ref)
+                if o is None:
+                    print(f"{ref}: not found")
+                    continue
+                store.set_offer_status(o["url"], "applied")
+                print(f"{ref}: {o['title']} — {o['company']} marked as applied")
         else:
             print(f"{store.reset_previews()} companies re-queued.")
         return
@@ -64,6 +80,18 @@ def main():
             if region is None:
                 raise SystemExit(f"Unknown region {args.region!r}")
         agent.run_discovery(region)
+    elif args.cmd == "offers":
+        region = None
+        if args.region:
+            region = next((x for x in cfg["market"]["regions"] if x["name"].lower() == args.region.lower()), None)
+            if region is None:
+                raise SystemExit(f"Unknown region {args.region!r}")
+        agent.run_offer_search(region)
+        agent.prepare_offer_kits()
+    elif args.cmd == "digest":
+        agent.check_replies(force=True)
+        if not agent.maybe_send_digest(force=True):
+            print("Today's digest was already sent (or digest.enabled is false).")
     elif args.cmd == "seed":
         added, qualified = agent.seed_from_csv(args.csv)
         print(f"{added} companies imported, {qualified} qualified.")

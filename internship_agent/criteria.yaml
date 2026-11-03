@@ -28,6 +28,16 @@ candidate:
   motivation: >
     I want to work on live transactions and learn valuation and deal execution
     from a team that works on cross-border mid-market deals.
+  linkedin_profile: "https://www.linkedin.com/in/your-profile"
+  # Answers to the questions online application forms always ask.
+  # They are shown next to every job offer so you can paste them.
+  screening_answers:
+    work_authorization: "EU citizen: authorised to work in the EU. Would need sponsorship for the UK, US and Asia."
+    availability: "Available from January 2027 for 6 months"
+    languages: "French (native), English (fluent, C1)"
+    relocation: "Yes, open to relocating"
+    salary_expectation: "In line with your standard internship package"
+    how_did_you_hear: "Your careers page"
 
 # ── 2. The market range the agent focuses on ────────────────────────────────
 market:
@@ -87,7 +97,31 @@ schedule:
   pipeline_buffer: 20         # keep at least this many qualified companies ready
   max_discovery_rounds_per_day: 12
 
-# ── 5. Engine ───────────────────────────────────────────────────────────────
+# ── 5. LinkedIn & online job offers (you click "send" — see INTERNSHIP_AGENT.md) ──
+linkedin:
+  enabled: true
+  min_score: 75             # only the best companies get a LinkedIn kit as well
+  weekly_invites: 80        # LinkedIn allows ~100 invitations a week; stay under it
+
+offers:
+  enabled: true
+  daily_target: 15          # job offers to prepare per day (you apply in a few clicks)
+  max_search_rounds_per_day: 4
+  max_age_days: 30          # ignore postings older than this
+  keep_in_digest_days: 7    # an offer you haven't applied to stays listed this long
+  min_score: 50
+  title_keywords: ["intern", "internship", "stage", "stagiaire", "praktikum", "praktikant",
+                   "summer analyst", "off-cycle", "off cycle", "trainee", "werkstudent",
+                   "tirocinio", "prácticas", "practicas", "estágio", "spring week"]
+
+replies:
+  draft_responses: true     # a suggested answer is saved in Gmail Drafts — never sent by itself
+
+digest:
+  enabled: true             # one email to yourself per day: replies, LinkedIn kits, job offers
+  hour: 18                  # local time of the machine running the agent
+
+# ── 6. Engine ───────────────────────────────────────────────────────────────
 engine:
   # dry_run → writes letters to logs only · draft → Gmail drafts you send yourself
   # send    → sends automatically. Start with dry_run, read the output, then switch.
